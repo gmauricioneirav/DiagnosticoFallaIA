@@ -1,14 +1,15 @@
-# FaultDiagnosisAI
+# Asistente Inteligente Basado en LLM para el Diagnóstico 
+# Automático de Fallas Eléctricas en Sistemas de Potencia 
 
-Sistema multiagente (LangGraph + servidores MCP) para diagnóstico de
-fallas eléctricas a partir de registros COMTRADE.
+Sistema multiagente (LangGraph + servidores MCP + RAG) para 
+diagnóstico de fallas eléctricas a partir de registros COMTRADE.
 
 Este README documenta la organización de carpetas hecha sobre el proyecto:
 
 ## Estructura
 
 ```
-FaultDiagnosisAI/
+DiagnosticoFallaIA/
 │
 ├── app.py                    # Interfaz Streamlit (presentación pura)
 ├── requirements.txt
@@ -53,11 +54,11 @@ FaultDiagnosisAI/
 ## Cómo correr
 
 1. `pip install -r requirements.txt`
-2. Crear un archivo `.env` (este repo no trae `.env.example`) con al
-   menos `OPENAI_API_KEY` (u `LLM_PROVIDER=ollama` para modelo local),
-   y las variables que use tu configuración de servidores MCP -- ver
-   `_build_servers_config()` en `graph/workflow.py` para la lista
-   completa (`MCP_CALCULO_SCRIPT`, `MCP_GRAFICADO_SCRIPT`,
+2. Crear un archivo `.env` (este repo trae `.env.example`) con al
+   menos `OPENAI_API_KEY`, y las variables que use tu configuración 
+   de servidores MCP -- ver `_build_servers_config()` en 
+   `graph/workflow.py` para la lista completa 
+   (`MCP_CALCULO_SCRIPT`, `MCP_GRAFICADO_SCRIPT`,
    `MCP_RETRIEVAL_SCRIPT`, `BM25_INDEX_PATH`, `CHROMA_PERSIST_DIR`,
    `CHROMA_COLLECTION`, `EMBEDDING_BACKEND`).
 3. Construir el índice RAG (una vez, o cuando cambien los manuales):
