@@ -1,5 +1,4 @@
-# Asistente Inteligente Basado en LLM para el Diagnóstico 
-# Automático de Fallas Eléctricas en Sistemas de Potencia 
+# Asistente Inteligente Basado en LLM para el Diagnóstico Automático de Fallas Eléctricas en Sistemas de Potencia 
 
 Sistema multiagente (LangGraph + servidores MCP + RAG) para 
 diagnóstico de fallas eléctricas a partir de registros COMTRADE.
