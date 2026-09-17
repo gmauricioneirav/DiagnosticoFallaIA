@@ -13,11 +13,6 @@ generación de gráficas/informe -- ocurre dentro del grafo de agentes
 (cálculo, graficado, retrieval -- ver mcp_servers/). La app solo invoca
 el grafo y renderiza lo que este devuelve en su State.
 
-No existe un "modo determinístico" de respaldo: si no hay agente
-disponible (falta ANTHROPIC_API_KEY o los servidores MCP), la app lo
-indica explícitamente en vez de mostrar un resultado calculado
-localmente por reglas.
-
 Flujo:
   1. Barra lateral: subir archivo .cfg/.dat (o usar el de ejemplo).
   2. Botón "Analizar evento": invoca el grafo LangGraph completo
@@ -122,7 +117,7 @@ def _configure_case_logging(thread_id: str) -> str:
     abs_path = os.path.abspath(log_path)
     for h in target_logger.handlers:
         if isinstance(h, logging.FileHandler) and getattr(h, "baseFilename", None) == abs_path:
-            return log_path  # ya configurado (evita duplicar handlers en reruns de Streamlit)
+            return log_path 
 
     handler = logging.FileHandler(log_path, encoding="utf-8")
     handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
@@ -170,7 +165,7 @@ def get_llm():
 
       LLM_PROVIDER=openai (default)
           Requiere OPENAI_API_KEY.
-          OPENAI_MODEL (default: "gpt-5")
+          OPENAI_MODEL (default: "gpt-5-mini")
 
       LLM_PROVIDER=ollama
           Modelo local servido por Ollama (https://ollama.com).
@@ -195,7 +190,7 @@ def get_llm():
 
     if provider == "openai":
         from langchain_openai import ChatOpenAI
-        model = os.environ.get("OPENAI_MODEL", "gpt-5")
+        model = os.environ.get("OPENAI_MODEL", "gpt-5-mini")
         return ChatOpenAI(model=model, temperature=0)
 
     raise ValueError(
@@ -204,11 +199,11 @@ def get_llm():
 
 
 async def invoke_graph(
-    cfg_path: str,
-    dat_path: str,
-    user_message: str | None = None,
-    status: "st.delta_generator.DeltaGenerator | None" = None,
-) -> dict:
+            cfg_path: str,
+            dat_path: str,
+            user_message: str | None = None,
+            status: "st.delta_generator.DeltaGenerator | None" = None,
+        ) -> dict:
     """
     Invoca (o continúa) el grafo de agentes sobre el thread_id de la sesión,
     transmitiendo en vivo -- si se pasa `status` (un objeto st.status()) --
@@ -230,16 +225,7 @@ async def invoke_graph(
     evento de inicio/fin de nodo y de herramienta a medida que ocurren.
     El estado final consolidado no se arma a mano a partir de esos
     eventos -- se lee directamente del checkpointer con `aget_state()`,
-    que es la fuente de verdad tras la ejecución (más robusto que confiar
-    en la forma exacta del último evento, que puede variar entre
-    versiones de langgraph/langchain-core).
-
-    NOTA: los nombres de evento ("on_chain_start", "on_tool_start", etc.)
-    y la presencia de `langgraph_node` en la metadata corresponden al
-    esquema v2 de astream_events de langchain-core al momento de escribir
-    esto. Si tras actualizar dependencias los pasos dejan de mostrarse en
-    la UI, imprime `event` dentro del bucle para inspeccionar la forma
-    real que está devolviendo tu versión instalada.
+    que es la fuente de verdad tras la ejecución.
     """
     llm = get_llm()
     graph = build_graph(llm)
@@ -280,7 +266,7 @@ async def invoke_graph(
             status.write(f"▶ {NODE_LABELS[name]}")
         elif kind == "on_tool_start" and name:
             label = TOOL_LABELS.get(name, f"Utilizando herramienta MCP: {name}")
-            if name not in seen_tools:  # evita duplicar la línea si el ReAct de Diagnóstico repite la misma herramienta
+            if name not in seen_tools:  
                 status.write(f"🔧 {label}")
             seen_tools.add(name)
         elif kind == "on_chain_end" and name in NODE_LABELS:
@@ -308,12 +294,8 @@ if uploaded_cfg and uploaded_dat and not use_example:
     with open(dat_path, "wb") as f:
         f.write(uploaded_dat.getbuffer())
 else:
-    # Antes vivía en comtrades/sample2/ -- ahora la carpeta de ejemplos
-    # del proyecto es sample/ (ver la estructura de carpetas). Coloca ahí
-    # tu propio .cfg/.dat de ejemplo con este mismo nombre/subcarpeta, o
-    # ajusta esta ruta.
-    cfg_path = os.path.join("sample", "sample2", "oscilografia.CFG")
-    dat_path = os.path.join("sample", "sample2", "oscilografia.DAT")
+    cfg_path = os.path.join("sample", "sample2", "oscilografia2.CFG")
+    dat_path = os.path.join("sample", "sample2", "oscilografia2.DAT")
 
 run_button = st.sidebar.button("Analizar evento", type="primary")
 
