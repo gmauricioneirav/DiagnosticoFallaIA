@@ -50,21 +50,57 @@ DiagnosticoFallaIA/
 └── sample/                      # Coloca aquí tus .cfg/.dat de ejemplo
 ```
 
-## Cómo correr
+## Recursos no incluidos en el repositorio
 
-1. `pip install -r requirements.txt`
-2. Crear un archivo `.env` (este repo trae `.env.example`) con al
-   menos `OPENAI_API_KEY`, y las variables que use tu configuración 
-   de servidores MCP -- ver `_build_servers_config()` en 
-   `graph/workflow.py` para la lista completa 
-   (`MCP_CALCULO_SCRIPT`, `MCP_GRAFICADO_SCRIPT`,
-   `MCP_RETRIEVAL_SCRIPT`, `BM25_INDEX_PATH`, `CHROMA_PERSIST_DIR`,
-   `CHROMA_COLLECTION`, `EMBEDDING_BACKEND`).
-3. Construir el índice RAG (una vez, o cuando cambien los manuales):
-   ```
-   python -m rag.rag_index ./mis_manuales --bm25-output manual_bm25.pkl \
-       --persist-dir ./chroma_manuales --collection manuales
-   ```
-4. Colocar un `.cfg`/`.dat` de ejemplo en `sample/` (o subir uno desde
-   la UI).
-5. `streamlit run app.py`
+Algunos recursos necesarios para la ejecución completa de la aplicación no se incluyen directamente en el repositorio:
+
+* Las bases de datos utilizadas por el sistema de recuperación mediante RAG no se incluyen en el repositorio debido a su tamaño. Estas incluyen la base de datos vectorial implementada mediante Chroma y el índice utilizado para la recuperación léxica mediante BM25.
+
+* Los documentos técnicos, manuales y documentos corporativos utilizados para construir la base de conocimiento no se incluyen en el repositorio. Esta decisión responde a restricciones relacionadas con la confidencialidad y los derechos de uso de parte de la documentación técnica y corporativa utilizada como fuente de conocimiento.
+
+Por tanto, para reproducir el funcionamiento del componente RAG es necesario construir nuevamente los índices a partir de los documentos técnicos disponibles para el usuario.
+
+## Construcción de la base de conocimientos
+
+Antes de ejecutar la aplicación es necesario disponer de los documentos técnicos que serán utilizados para construir la base de conocimiento del sistema.
+
+Los documentos deben almacenarse en un directorio destinado a este propósito dentro de la estructura del proyecto. Para mantener la organización utilizada durante el desarrollo, se recomienda utilizar una carpeta denominada `Manuales` ubicada en el directorio raíz del proyecto.
+
+Una vez disponibles los documentos, se ejecuta el proceso de construcción del índice RAG mediante el siguiente comando:
+
+`python -m rag.rag_index Manuales --bm25-output manual_bm25.pkl --persist-dir ./chroma_manuales --collection manuales`
+
+Este procedimiento genera los recursos necesarios para la recuperación de información utilizada por el sistema, incluyendo el índice BM25 y la base de datos vectorial persistente.
+
+El proceso de construcción de los índices debe ejecutarse nuevamente cuando se realicen modificaciones en el conjunto documental, tales como la incorporación, eliminación o actualización de documentos utilizados como fuente de conocimiento.
+
+## Instalación y ejecución de la aplicación
+
+Una vez que el índice de conocimiento se encuentra disponible, es necesario instalar las dependencias requeridas por la aplicación.
+
+Las librerías necesarias se encuentran especificadas en el archivo requirements.txt incluido en el repositorio. La instalación se realiza mediante el siguiente comando:
+
+`pip install -r requirements.txt`
+
+Posteriormente, se debe crear un archivo denominado `.env` en el directorio raíz del proyecto. El repositorio incluye un archivo de ejemplo denominado `.env.example`, que puede utilizarse como referencia para la definición de las variables de entorno requeridas. 
+
+Como mínimo, debe configurarse la variable correspondiente a la clave de acceso al servicio de modelos de lenguaje:
+
+`OPENAI_API_KEY=...`
+
+Las demás variables de configuración pueden utilizar los valores predeterminados definidos por la aplicación cuando no se especifiquen explícitamente en el archivo `.env`.
+
+Finalmente, la aplicación puede ejecutarse mediante Streamlit utilizando el siguiente comando: 
+
+`streamlit run app.py`
+
+La ejecución de este comando inicia la aplicación y permite acceder a la interfaz desde un navegador web.
+
+
+## Consideraciones y limitaciones para la reproducibilidad
+
+La reproducibilidad del código y de la arquitectura desarrollada se facilita mediante la disponibilidad del repositorio y de los registros utilizados en la evaluación. Sin embargo, la reproducción exacta de los resultados asociados al componente RAG puede verse limitada por la imposibilidad de distribuir parte de la documentación técnica utilizada durante su construcción.
+
+La separación entre el código fuente y los recursos documentales permite mantener disponibles los componentes desarrollados durante la investigación, respetando simultáneamente las restricciones asociadas a la documentación técnica y corporativa empleada.
+
+La disponibilidad del código fuente en el repositorio permite revisar la implementación de los principales componentes del sistema, incluyendo la arquitectura multiagente, los mecanismos de orquestación, las herramientas utilizadas, el sistema de recuperación de información y la interfaz de usuario.
