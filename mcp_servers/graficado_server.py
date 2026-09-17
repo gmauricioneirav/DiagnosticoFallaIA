@@ -18,14 +18,6 @@ Herramienta expuesta:
     Devuelve {"format": "png", "data": "<base64>"} -- exactamente el
     formato que espera render_agent_figure() en app.py.
 
-NOTA de diseño: se reutilizan extractor._pick_index() y
-extractor._scaled_waveform(), que en tools/comtrade_features.py están
-marcados como "privados" por convención (guión bajo simple). Como este
-servidor es parte del mismo proyecto, se acepta por ahora; si más
-adelante otro equipo va a mantener el servidor de graficado por
-separado, conviene promoverlos a métodos públicos en
-ComtradeFeatureExtractor.
-
 Ejecutar:
     python mcp_servers/graficado_server.py
     MCP_TRANSPORT=http MCP_PORT=8002 python mcp_servers/graficado_server.py
@@ -100,8 +92,7 @@ def _plot_analog(cfg_path: str, dat_path: str, fault_window: Optional[dict], pha
 
     # Solo tenemos el ciclo de PICO de la falla (fault_window.peak_cycle_time_s
     # en el resumen de ComtradeFeatureExtractor.summarize_event), no un
-    # rango de inicio/fin -- por eso se marca con una línea vertical y no
-    # con una banda de "ventana", que implicaría un dato que no tenemos.
+    # rango de inicio/fin 
     peak_t = (fault_window or {}).get("peak_cycle_time_s")
     if peak_t is not None:
         for ax in (ax_i, ax_v):

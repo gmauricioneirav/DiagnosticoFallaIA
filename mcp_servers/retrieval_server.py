@@ -8,29 +8,17 @@ archivo solo la expone como herramienta MCP.
 
 No hace ninguna llamada a un LLM ni decide nada por su cuenta: solo
 recupera texto ya existente en los documentos indexados (ver
-rag/rag_index.py: BM25 + ChromaDB sobre el mismo conjunto de chunks). La
-interpretación de esos fragmentos (qué implican para el diagnóstico)
-queda del lado del agente de Diagnóstico (agents/diagnosis_agent.py) --
-este servidor nunca resume, parafrasea ni añade nada al contenido
-recuperado.
+rag/rag_index.py: BM25 + ChromaDB sobre el mismo conjunto de chunks). 
 
 Antes de usar, hay que construir el índice híbrido:
-    python -m rag.rag_index /ruta/a/manuales \
-        --bm25-output manual_bm25.pkl --persist-dir ./chroma_manuales --collection manuales
+    python -m rag.rag_index /ruta/a/manuales --bm25-output manual_bm25.pkl --persist-dir ./chroma_manuales --collection manuales
 
-Ejecutar:
-    BM25_INDEX_PATH=manual_bm25.pkl CHROMA_PERSIST_DIR=./chroma_manuales \
-        CHROMA_COLLECTION=manuales python mcp_servers/retrieval_server.py
-    MCP_TRANSPORT=http MCP_PORT=8003 python mcp_servers/retrieval_server.py
-
-IMPORTANTE: EMBEDDING_BACKEND (y el modelo asociado, OPENAI_EMBEDDING_MODEL
-o ST_EMBEDDING_MODEL) debe ser EXACTAMENTE el mismo que se usó al
-construir el índice con `python -m rag.rag_index`.
+IMPORTANTE: EMBEDDING_BACKEND (y el modelo asociado, OPENAI_EMBEDDING_MODEL o ST_EMBEDDING_MODEL) 
+debe ser EXACTAMENTE el mismo que se usó al construir el índice con `python -m rag.rag_index`.
 
 Requiere:
     pip install "mcp[cli]" rank-bm25 chromadb
-    # más el backend de embeddings usado (openai o sentence-transformers,
-    # ver rag/rag_index.py)
+    # más el backend de embeddings usado (openai o sentence-transformers, ver rag/rag_index.py)
 
 BLINDAJE DE STDOUT (leer antes de tocar este archivo):
     Con transporte "stdio", MCP usa el stdout (fd 1) del proceso como el
@@ -48,7 +36,7 @@ BLINDAJE DE STDOUT (leer antes de tocar este archivo):
     Por eso, antes de cualquier import que pueda imprimir algo (incluido
     "from rag.retriever import ..."), este archivo duplica el fd 1 real
     en uno "limpio" aparte y redirige el fd 1 del proceso a stderr para
-    TODO lo demás. El servidor, al arrancar en modo stdio, usa
+    todo lo demás. El servidor, al arrancar en modo stdio, usa
     explícitamente ese duplicado limpio para el protocolo en vez de
     dejar que FastMCP tome sys.stdout tal cual (que a partir de acá
     apunta a stderr) -- ver _run_stdio_blindado() más abajo.
@@ -96,20 +84,15 @@ async def retrieve_manuals(query: str, top_k: int = 5, sources: list[str] | None
     en similitud semántica/paráfrasis) por Reciprocal Rank Fusion.
 
     Args:
-        query: consulta en lenguaje natural o términos técnicos (p. ej.
-            nombres de elementos de protección, tipo de falla sospechado,
-            nombre de un canal digital cuyo significado se necesita).
+        query: consulta en lenguaje natural o términos técnicos 
         top_k: cuántos fragmentos devolver como máximo (por defecto 5).
-        sources: si se indica, restringe la búsqueda a estos nombres de
-            archivo exactos (p. ej. ["SEL-451-Manual.pdf"]). Útil cuando
-            ya se sabe qué manual de fabricante aplica.
+        sources: si se indica, restringe la búsqueda a estos nombres de archivo exactos (p. ej. ["SEL-451-Manual.pdf"]).
 
     Returns:
         Lista de {"text", "source", "page", "score", "matched_by"},
-        ordenada por score RRF descendente. "matched_by" indica, para
-        trazabilidad, en qué ranking(s) apareció el fragmento (bm25 y/o
-        vector) y su rank/score en cada uno. Lista vacía si ningún
-        método encontró nada -- nunca inventa un resultado.
+        ordenada por score RRF descendente. 
+        "matched_by" indica, para trazabilidad, en qué ranking(s) apareció el fragmento (bm25 y/o vector) y su rank/score en cada uno.
+        Lista vacía si ningún método encontró nada -- nunca inventa un resultado.
     """
     return await asyncio.to_thread(_retrieve_manuals_core, query, top_k, sources)
 
@@ -124,12 +107,6 @@ async def _run_stdio_blindado() -> None:
     la ejecución de una tool (una barra de progreso, un warning, un
     print() de alguna dependencia), esa salida cae en stderr y nunca
     corrompe el canal del protocolo MCP.
-
-    Se accede a mcp._mcp_server porque la API pública de FastMCP no
-    expone una forma de inyectar streams personalizados para stdio; es
-    exactamente lo que hace FastMCP.run_stdio_async() internamente (ver
-    mcp/server/fastmcp/server.py), solo que aquí se le pasa `stdout`
-    explícito a stdio_server() en vez del default.
     """
     clean_stdout = anyio.wrap_file(
         io.TextIOWrapper(os.fdopen(_CLEAN_STDOUT_FD, "wb", closefd=False), encoding="utf-8")
@@ -144,8 +121,7 @@ async def _run_stdio_blindado() -> None:
 
 if __name__ == "__main__":
     if os.environ.get("MCP_TRANSPORT") == "http":
-        # El transporte HTTP no usa stdout como canal -- no necesita el
-        # blindaje de arriba, mcp.run() normal está bien acá.
+        # El transporte HTTP no usa stdout como canal -- no necesita el blindaje de arriba, mcp.run() normal está bien acá.
         mcp.run(transport="streamable-http")
     else:
         anyio.run(_run_stdio_blindado)

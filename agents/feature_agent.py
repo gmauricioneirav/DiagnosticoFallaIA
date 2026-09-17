@@ -4,13 +4,12 @@ agents/feature_agent.py
 Nodo de Features: calcula magnitudes de las señales (RMS por ciclo,
 componentes simétricas) y el estado de actuación de las protecciones,
 invocando herramientas MCP de cálculo -- nunca calcula nada en Python
-puro. Dos llamadas MCP, ninguna con señales como argumento: el servidor
-de cálculo (mcp_servers/calculo_server.py) hace su propio load() de
-tools/comtrade_features.py y tools/soe_extractor.py respectivamente. El
-primero da evidencia de la forma de onda (RMS, secuencias); el segundo
-da evidencia de qué protección operó y cuándo -- ambos necesarios para
-que Diagnóstico no dictamine el tipo de falla sin ver también la
-actuación real.
+Dos llamadas MCP, ninguna con señales como argumento: 
+el servidor de cálculo (mcp_servers/calculo_server.py) hace su propio load() de
+tools/comtrade_features.py y tools/soe_extractor.py respectivamente. 
+El primero da evidencia de la forma de onda (RMS, secuencias); 
+el segundo da evidencia de qué protección operó y cuándo 
+-- ambos necesarios para que Diagnóstico dictamine el tipo de falla
 """
 
 from __future__ import annotations

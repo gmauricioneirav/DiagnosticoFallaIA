@@ -209,18 +209,6 @@ def classify_phase_by_name(raw_name: str) -> tuple[Phase, str]:
 # lo que evita falsos positivos, pero no calza con exportadores que anteponen
 # un nombre de estación/línea largo antes de una descripción de fase, p. ej.
 # DIgSILENT PowerFactory: "Piedecuesta - Rio Frio 115:Phase Current A".
-#
-# Este fallback opera sobre el nombre CRUDO (antes de quitar espacios) y
-# solo mira el FINAL de la cadena: un token de fase aislado (precedido de
-# espacio, ":", "_", "-" o inicio de cadena) o el patrón residual clásico
-# "3I0"/"3*I0". Es deliberadamente de MENOR confianza que un match de
-# PHASE_PATTERNS -- se etiqueta con su propio valor de `confidence` para
-# que quede auditable -- porque un canal genuinamente llamado, por ejemplo,
-# "...Bahía A" (una bahía/posición de subestación, no una fase eléctrica)
-# también haría match. En la práctica, esto es preferible a dejar sin
-# clasificar un canal cuya UNIDAD (uu) ya confirmó que es corriente o
-# tensión: se prioriza no perder la señal sobre el riesgo, acotado y
-# auditable, de una fase mal asignada por este último recurso.
 
 _SUFFIX_PHASE_PATTERN = re.compile(r"(?:^|[\s:_-])([ABC])$", re.IGNORECASE)
 _SUFFIX_RESIDUAL_PATTERN = re.compile(r"3\*?[IUV]0$", re.IGNORECASE)
@@ -372,11 +360,6 @@ class ChannelIdentifier:
         for i, chn in enumerate(self.rec.cfg.analog_channels):
             signal_type = classify_by_unit(chn.uu)
 
-            # 0) primero se revisa si es una cantidad ya precalculada por
-            #    el IED (secuencia, magnitud fasorial por fase, frecuencia)
-            #    — esto tiene prioridad porque, de no chequearse antes,
-            #    un canal como "LINEA Ia Mag" terminaría clasificado como
-            #    forma de onda cruda de fase A (falso positivo).
             quantity_kind, precomputed_phase, phasor_part, domain_hint = classify_precomputed_quantity(chn.name)
 
             if quantity_kind != QuantityKind.UNKNOWN:

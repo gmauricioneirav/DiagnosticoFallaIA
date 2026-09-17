@@ -4,8 +4,7 @@ agents/diagnosis_agent.py
 Nodo de Diagnóstico: agente ReAct de LangGraph que genera o actualiza la
 hipótesis de falla y su confianza, combinando features y contexto
 normativo. Puede invocar herramientas MCP de cálculo o de retrieval si
-necesita un dato adicional que no esté ya en el contexto -- nunca
-inventa cifras.
+necesita un dato adicional que no esté ya en el contexto -- nunca inventa cifras.
 """
 
 from __future__ import annotations
@@ -63,22 +62,8 @@ async def diagnostico_node(state: FaultAnalysisState) -> dict:
     return {
         "diagnosis_hypothesis": structured.hypothesis,
         "confidence": structured.confidence,
-        # Ambas banderas se resetean aquí, no solo reviewed_by_critico:
-        # needs_revision describía una inconsistencia de la hipótesis
-        # ANTERIOR. Si no se limpia también aquí, queda en True para
-        # siempre tras el primer rechazo del Crítico -- la regla del
-        # Supervisor ("needs_revision=True -> vuelve a diagnostico/rag,
-        # nunca a critico") entonces reenvía a este nodo indefinidamente,
-        # porque solo critico_node puede volver a poner needs_revision en
-        # False, y la propia regla se lo impide mientras siga en True.
-        # Este fue justo el bucle observado en producción.
-        "needs_revision": False,
-        "reviewed_by_critico": False,  # toda hipótesis nueva/actualizada exige pasar por critico de nuevo
-        # Igual razón que needs_revision arriba: esta hipótesis es NUEVA,
-        # así que si el próximo critico vuelve a pedir más contexto
-        # normativo, es un pedido legítimo y distinto -- merece su propio
-        # reintento de 'rag', no heredar el "ya reintenté" de la
-        # hipótesis anterior. Ver rag_agent.py y coordinator_prompt.py.
+        "needs_revision": False,        # needs_revision describe una inconsistencia de la hipótesis anterior
+        "reviewed_by_critico": False,   # toda hipótesis nueva/actualizada exige pasar por critico de nuevo
         "rag_retried_for_revision": False,
         "messages": [AIMessage(content=final_message.content)],
     }

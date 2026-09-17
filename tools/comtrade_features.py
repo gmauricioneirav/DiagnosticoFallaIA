@@ -334,10 +334,7 @@ class ComtradeFeatureExtractor:
         distintos y produciria una combinacion fisicamente inconsistente).
         """
         trigger_time = trigger_time if trigger_time is not None else self.rec.trigger_time
-        # OJO: "if trigger_time" trataría un trigger en t=0.0 como si no
-        # hubiera trigger (0.0 es falsy en Python) -- se compara contra
-        # None explícitamente, igual que ya se hace en
-        # SOEExtractor.summarize_protection_status.
+        
         pre_fault = df[df["time_s"] < (trigger_time - 0.02)] if trigger_time is not None else df.iloc[:1]
         during_fault = df[df["time_s"] >= trigger_time] if trigger_time is not None else df
 

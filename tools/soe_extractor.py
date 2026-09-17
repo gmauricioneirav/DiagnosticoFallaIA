@@ -11,14 +11,6 @@ Esto es lo que despues alimenta `protection_status` en el
 que el agente de diagnostico entienda la secuencia real de actuacion de
 las protecciones, no solo el estado final.
 
-Un detalle importante descubierto al analizar datos reales: algunos
-bits digitales llegan **constantes** durante todo el registro (ni suben
-ni bajan) -- normalmente eso significa que es un bit de estado/latch de
-un evento anterior, no una transicion real dentro de la ventana
-capturada, y por eso NO deberia usarse como evidencia de que "ese
-elemento opero durante este evento". Este modulo los identifica
-explicitamente en vez de reportarlos como si fueran parte del SOE.
-
 Requiere:
     pip install comtrade pandas
 """
@@ -66,12 +58,6 @@ class SOEExtractor:
         (0->1 y 1->0), devolviendo la lista completa ordenada
         cronologicamente (y, en caso de empate exacto de tiempo, por
         indice de canal, para que el orden sea determinista).
-
-        `include_initial_state=True` agrega tambien un pseudo-evento en
-        t=0 con el estado inicial de cada canal (util para saber, por
-        ejemplo, si el interruptor ya estaba cerrado antes del evento) --
-        no es una "transicion" real, se marca como tal en el campo
-        `transition`.
         """
         if self.rec is None:
             self.load()
@@ -117,7 +103,7 @@ class SOEExtractor:
         Devuelve los canales digitales cuyo valor NO cambia en ningun
         momento del registro -- ni son parte de una transicion real
         capturada, y por eso no deberian tomarse como evidencia de "esto
-        opero durante este evento" (ver nota del docstring del modulo).
+        opero durante este evento".
         """
         if self.rec is None:
             self.load()
@@ -148,19 +134,6 @@ class SOEExtractor:
         channels_without_transitions) se excluyen explícitamente porque
         no son evidencia de operación real en ESTE evento, y las
         transiciones 1->0 (reset) no se cuentan como "disparo".
-
-        IMPORTANTE (descubierto probando con un registro real de un SEL-451):
-        la PRIMERA activación tras el trigger casi nunca es el disparo real.
-        En este archivo, la primera es "ER" (probablemente un flag interno
-        de event recorder), que se activa y desactiva varias veces antes
-        de que el relé dispare de verdad ("TRIP"/"3PT" varios ms después).
-        Qué nombre de canal representa "el disparo" depende del fabricante
-        y del esquema de protección configurado -- es conocimiento que
-        debería salir del manual del relé (agente RAG), no de una
-        heurística fija aquí. Por eso este método YA NO asume que la
-        primera activación es el disparo: devuelve `first_activation_*`
-        (neutral, siempre disponible) y solo llena `first_trip_*` si se
-        le pasan `trip_channel_names` explícitos que matcheen algo.
         """
         if self.rec is None:
             self.load()

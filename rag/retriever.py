@@ -8,11 +8,6 @@ su cuenta: solo recupera texto ya existente en los documentos indexados,
 combinando dos rankings ya calculados (BM25 y similitud de embeddings)
 por Reciprocal Rank Fusion (RRF).
 
-Este módulo es puro (sin FastMCP) para poder testearlo o reutilizarlo
-sin levantar un servidor -- mcp_servers/retrieval_server.py es apenas un
-wrapper delgado que expone retrieve_manuals() de aquí como herramienta
-MCP.
-
 POR QUÉ HÍBRIDO + RRF (ver también el docstring de rag/rag_index.py):
     BM25 es más confiable para el vocabulario técnico exacto de estos
     manuales (códigos ANSI/IEEE como 67P1, 51S1, TRIP, 3PT, 50GF...),
@@ -52,14 +47,12 @@ from typing import Optional
 
 from rag.rag_index import Chunk, load_chroma_collection, tokenize
 
-# Constante estándar de RRF (Cormack, Clarke & Buettcher, 2009). Config-
-# urable por si se quiere experimentar, pero 60 es el valor de referencia.
+# Constante estándar de RRF (Cormack, Clarke & Buettcher, 2009). 
+# Configurable por si se quiere experimentar, pero 60 es el valor de referencia.
 RRF_K = int(os.environ.get("RRF_K", "60"))
 
-# Cuántos candidatos se piden a CADA ranker antes de fusionar -- debe ser
-# mayor que top_k para que la fusión tenga margen real de recombinar
-# (si solo se pidiera top_k a cada uno, un chunk relevante que quede en
-# la posición top_k+1 de BM25 pero #1 en embeddings nunca entraría).
+# Cuántos candidatos se piden a CADA ranker antes de fusionar 
+# -- debe ser mayor que top_k para que la fusión tenga margen real de recombinar
 _CANDIDATE_MULTIPLIER = int(os.environ.get("RRF_CANDIDATE_MULTIPLIER", "4"))
 _MIN_CANDIDATES = int(os.environ.get("RRF_MIN_CANDIDATES", "20"))
 
@@ -93,19 +86,11 @@ def _load_bm25_index() -> dict:
 
 def _load_legacy_main_pickle(index_path: str, original_exc: Exception) -> dict:
     """
-    Compatibilidad con pickles generados corriendo el script
-    directamente (`python rag_index.py ...` o `python rag\\rag_index.py
-    ...`) en vez de con `python -m rag.rag_index ...`. En ese caso
-    `Chunk` quedó serializado bajo el módulo "__main__" DE AQUEL
-    proceso, que no existe aquí.
-
     En vez de obligar a reconstruir el índice (potencialmente caro si
     hay muchos documentos y se usa un backend de embeddings pagado), se
     inyecta temporalmente `Chunk` como atributo del "__main__" de ESTE
     proceso -- que es exactamente donde pickle lo va a buscar -- y se
-    reintenta. Es solo un parche de lectura: el archivo en disco no se
-    modifica, así que sigue siendo buena idea reconstruirlo con `-m`
-    quien quiera evitar este parche a futuro.
+    reintenta.
     """
     main_module = sys.modules.get("__main__")
     if main_module is not None:
@@ -137,12 +122,11 @@ def _load_chroma_collection():
 # ---------------------------------------------------------------------------
 # Los dos rankings individuales
 # ---------------------------------------------------------------------------
-
 def _bm25_ranking(query: str, candidate_k: int, sources: Optional[list[str]]) -> list[dict]:
     """Retorna una lista ordenada (rank 1 = mejor) de hasta candidate_k
     resultados BM25, cada uno con text/source/page/chunk_id/raw_score.
-    Nunca incluye resultados con score<=0 (sin coincidencia real de
-    término -- igual que en la versión BM25 pura)."""
+    Nunca incluye resultados con score<=0.
+    """
     index = _load_bm25_index()
     bm25 = index["bm25"]
     chunks = index["chunks"]
@@ -202,8 +186,6 @@ def _chroma_ranking(query: str, candidate_k: int, sources: Optional[list[str]]) 
                 "text": text,
                 "source": meta.get("source"),
                 "page": meta.get("page") or None,
-                # similitud coseno (1.0 = idéntico); solo informativo, RRF
-                # no usa este valor, solo la posición en esta lista.
                 "raw_score": float(1.0 - distance),
             }
         )
@@ -226,7 +208,7 @@ def _reciprocal_rank_fusion(
 
     Retorna una lista fusionada, ordenada por score RRF descendente,
     recortada a top_k, con cada item anotado con su rank/score de origen
-    en cada método (para trazabilidad -- no para volver a puntuar).
+    en cada método.
     """
     fused: dict[str, dict] = {}
 
@@ -274,10 +256,8 @@ def retrieve_manuals(query: str, top_k: int = 5, sources: Optional[list[str]] = 
         Lista de {"text", "source", "page", "score", "matched_by"},
         ordenada por score RRF descendente. "matched_by" indica, para
         trazabilidad, en qué ranking(s) apareció el fragmento (bm25 y/o
-        vector) y su rank/score en cada uno -- útil para depurar si un
-        resultado vino solo de coincidencia léxica, solo de similitud
-        semántica, o de ambos (más confiable). Lista vacía si ningún
-        método encontró nada -- nunca inventa un resultado.
+        vector) y su rank/score en cada uno. 
+        Lista vacía si ningún método encontró nada -- nunca inventa un resultado.
     """
     query_text = (query or "").strip()
     if not query_text:

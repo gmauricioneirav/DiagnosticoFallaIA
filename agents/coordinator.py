@@ -42,12 +42,7 @@ def _last_human_text(state: FaultAnalysisState) -> Optional[str]:
 
 
 def _count_human_messages(state: FaultAnalysisState) -> int:
-    """Cuenta solo mensajes humanos/de usuario -- los nodos especialistas
-    (p. ej. diagnostico_node) agregan mensajes del asistente en cada
-    vuelta, así que contar TODOS los mensajes haría que esto creciera en
-    cada paso dentro del MISMO turno, no solo cuando llega una pregunta
-    nueva. Ver supervisor_node: esto es la señal para detectar "empezó un
-    turno nuevo" y darle presupuesto fresco de supervisor_steps."""
+    """Cuenta solo mensajes humanos/de usuario"""
     count = 0
     for msg in state.get("messages", []) or []:
         role = getattr(msg, "type", None) or (msg.get("role") if isinstance(msg, dict) else None)
@@ -58,12 +53,7 @@ def _count_human_messages(state: FaultAnalysisState) -> int:
 
 def _last_message_pending_answer(state: FaultAnalysisState) -> bool:
     """True si el último mensaje de la conversación es del usuario --
-    es decir, todavía nadie (ni diagnostico_node) le respondió. Sin esto,
-    una pregunta de chat que llega después de que el caso ya cerró
-    ('end') se quedaría sin respuesta: la cascada vería
-    tiene_diagnostico/revisado_por_critico/tiene_figuras/tiene_informe
-    todos en verdadero (de la corrida anterior) y volvería a 'end' de
-    inmediato.
+       es decir, todavía nadie le respondió.
     """
     messages = state.get("messages", [])
     if not messages:
@@ -72,16 +62,13 @@ def _last_message_pending_answer(state: FaultAnalysisState) -> bool:
     role = getattr(last, "type", None) or (last.get("role") if isinstance(last, dict) else None)
     return role in ("human", "user")
 
-
+# ---------------------------------------------------------------------------
+# Resumen del State usado como Contexto por el agente Supervisor
+# ---------------------------------------------------------------------------
 def _summarize_state_for_supervisor(state: FaultAnalysisState) -> str:
     summary = {
         "tiene_raw_metadata": bool(state.get("raw_metadata")),
         "tiene_features": bool(state.get("features")),
-        # bool(retrieved_docs) sería incorrecto: una consulta legítima sin
-        # coincidencias devuelve [], que es falsy en Python -- eso haría
-        # que el Supervisor crea que RAG nunca corrió y vuelva a
-        # invocarlo indefinidamente. rag_attempted distingue "ya corrió"
-        # de "corrió y no encontró nada".
         "tiene_retrieved_docs": bool(state.get("rag_attempted")),
         "tiene_diagnostico": bool(state.get("diagnosis_hypothesis")),
         "confianza_actual": state.get("confidence"),
@@ -101,7 +88,6 @@ def _summarize_state_for_supervisor(state: FaultAnalysisState) -> str:
 # ---------------------------------------------------------------------------
 # Nodo Supervisor (enrutamiento condicional, no determinístico)
 # ---------------------------------------------------------------------------
-
 class RouteDecision(BaseModel):
     next: Literal["ingesta", "features", "rag", "diagnostico", "critico", "salida", "end"] = Field(
         description="Siguiente especialista a ejecutar, o 'end' si el caso ya está resuelto "
@@ -112,7 +98,6 @@ class RouteDecision(BaseModel):
 
 def build_supervisor_node(llm):
     structured_llm = llm.with_structured_output(RouteDecision)
-
     def supervisor_node(state: FaultAnalysisState) -> dict:
         context = _summarize_state_for_supervisor(state)
         decision = structured_llm.invoke(
@@ -121,7 +106,6 @@ def build_supervisor_node(llm):
                 HumanMessage(content=f"Estado actual del caso:\n{context}"),
             ]
         )
-
         # Detecta si llegó una pregunta NUEVA del usuario desde la última
         # vez que corrió este nodo, contando solo mensajes humanos (ver
         # _count_human_messages). Cada invocación de invoke_graph() desde
@@ -139,24 +123,14 @@ def build_supervisor_node(llm):
         current_human_count = _count_human_messages(state)
         last_seen_human_count = state.get("human_messages_seen", 0) or 0
         is_new_turn = current_human_count > last_seen_human_count
-
         prior_supervisor_steps = 0 if is_new_turn else (state.get("supervisor_steps", 0) or 0)
 
         return {
             "next_step": decision.next,
-            # Contador general de pasos del Supervisor DENTRO del turno
-            # actual -- tope de seguridad determinístico en
-            # route_from_supervisor, independiente de CUÁL sea el patrón
-            # de bucle (a diferencia de revision_count, que solo cubre el
-            # ciclo diagnostico<->critico). Se reinicia a 0 cuando
-            # is_new_turn es verdadero (ver arriba), y también cuando
-            # agents/report_agent.py detecta una salida NO forzada.
+            # Contador general de pasos del Supervisor DENTRO del turno actual -- tope de seguridad determinístico en
+            # route_from_supervisor, independiente de CUÁL sea el patrón de bucle
             "supervisor_steps": prior_supervisor_steps + 1,
             "human_messages_seen": current_human_count,
-            # Se fusiona en la entrada de trace de este nodo (ver _traced) y
-            # no se persiste como clave propia del State -- deja rastro de
-            # POR QUÉ el Supervisor decidió ir a `decision.next`, útil para
-            # reconstruir el paso a paso completo del análisis.
             "_trace_extra": {"decision": decision.next, "rationale": decision.rationale},
         }
 
@@ -169,7 +143,7 @@ def build_supervisor_node(llm):
 #
 # 1. MAX_REVISION_CYCLES: ciclos crítico->diagnóstico consecutivos con
 #    needs_revision=True. Cubre el caso "Crítico y Diagnóstico no logran
-#    converger" -- se dispara temprano y de forma dirigida.
+#    converger". Se dispara temprano y de forma dirigida.
 #
 # 2. MAX_SUPERVISOR_STEPS: tope GENERAL de cuántas veces corrió el
 #    Supervisor en esta corrida, sin importar el patrón de bucle. Existe
@@ -178,8 +152,8 @@ def build_supervisor_node(llm):
 #    seguidas antes de volver a 'diagnostico'), así que MAX_REVISION_CYCLES
 #    por sí solo puede no alcanzar a dispararse antes de que LangGraph
 #    llegue a su recursion_limit por defecto (25) y aborte con
-#    GraphRecursionError -- justo lo que se observó en producción. Este
-#    tope es la red de respaldo para CUALQUIER bucle no anticipado, no
+#    GraphRecursionError. 
+#    Este tope es la red de respaldo para CUALQUIER bucle no anticipado, no
 #    solo el de crítico/diagnóstico.
 #
 # supervisor_steps se resetea a 0 en agents/report_agent.py (salida_node)
@@ -245,7 +219,7 @@ def route_from_supervisor(state: FaultAnalysisState) -> str:
     # de que el LLM no confunda esto con la regla, distinta, de
     # 'ultima_pregunta_usuario' (que solo autoriza saltar pasos
     # redundantes como ingesta/features/rag, nunca critico). Sin este
-    # freno se observó en producción 'diagnostico' corriendo 3 veces
+    # freno se observó durante las pruebas a 'diagnostico' corriendo 3 veces
     # seguidas sin pasar por 'critico' en el medio -- el LLM tomó la
     # existencia de 'ultima_pregunta_usuario' (que casi siempre existe)
     # como licencia para volver directo a 'diagnostico', ignorando que
@@ -269,8 +243,8 @@ def route_from_supervisor(state: FaultAnalysisState) -> str:
     # cambian entre una llamada a 'rag' y la siguiente (solo
     # diagnostico/critico los tocan), así que sin este freno el LLM ve
     # básicamente el mismo estado en cada vuelta y puede repetir 'rag'
-    # hasta agotar MAX_SUPERVISOR_STEPS -- justo el bucle observado en
-    # producción (7 llamadas seguidas a retrieve_manuals en un turno).
+    # hasta agotar MAX_SUPERVISOR_STEPS -- bucle observado en
+    # las pruebas (7 llamadas seguidas a retrieve_manuals en un turno).
     if next_step == "rag" and state.get("rag_attempted") and state.get("rag_retried_for_revision"):
         logger.warning(
             "[grafo] el Supervisor pidió 'rag' de nuevo pero ya se había reintentado para "

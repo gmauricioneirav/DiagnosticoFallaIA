@@ -1,9 +1,6 @@
 """
 rag/rag_index.py
-
-Módulo único que combina lo que antes eran rag/loader.py y
-rag/vector_store.py:
-
+Este modulo realiza:
   - Extracción y chunking de los manuales/normas de protecciones
     (.pdf/.txt/.md).
   - Construcción del índice BM25 (rank_bm25).
@@ -17,11 +14,9 @@ reconstruyes uno sin el otro (p. ej. reindexas solo Chroma con un
 chunking distinto) quedan desalineados: rag/retriever.py asume que un
 chunk_id significa el mismo texto en ambos índices. Los dos rankings se
 combinan por Reciprocal Rank Fusion (RRF) en rag/retriever.py, no aquí
--- este módulo solo construye los dos índices por separado, alineados
-por chunk_id.
 
-Se ejecuta una vez (o cada vez que cambien los documentos fuente) -- no
-en cada consulta del agente:
+Se ejecuta una vez (o cada vez que cambien los documentos fuente) 
+-- no en cada consulta del agente:
 
     python -m rag.rag_index Manuales --bm25-output manual_bm25.pkl --persist-dir ./chroma_manuales --collection manuales
 
@@ -38,25 +33,17 @@ POR QUÉ HÍBRIDO (historial de la decisión de diseño):
     pueden quedar cerca en el espacio de embeddings aunque semánticamente
     sean elementos de protección distintos.
 
-    v3 (esta versión) combina ambos: BM25 aporta precisión en
+    Esta versión combina ambos: BM25 aporta precisión en
     vocabulario/códigos exactos, los embeddings aportan generalización
     semántica (sinónimos, paráfrasis, preguntas en lenguaje natural que
     no calzan literalmente con el texto del manual). Se combinan con
     Reciprocal Rank Fusion (RRF) en rag/retriever.py.
 
-NOTA sobre el pickle de BM25: pickle guarda la clase `Chunk` bajo el
-nombre de módulo en el que fue definida en el momento de serializar. Si
-este archivo se ejecuta directamente en vez de con
-`python -m rag.rag_index`, revisa que el pickle generado siga siendo
-importable desde rag.retriever (que corre en otro proceso, el del
-servidor MCP) antes de desplegarlo -- debe importarse siempre igual, ej.
-`rag.rag_index`, en ambos lados.
-
 IMPORTANTE (backend de embeddings): EMBEDDING_BACKEND (y el modelo
 asociado, OPENAI_EMBEDDING_MODEL o ST_EMBEDDING_MODEL) debe ser
 EXACTAMENTE el mismo al construir el índice (build_index) y al
-consultarlo (rag.retriever, vía load_chroma_collection) -- de lo
-contrario la consulta se embebe en un espacio vectorial distinto al de
+consultarlo (rag.retriever, vía load_chroma_collection) 
+-- de lo contrario la consulta se embebe en un espacio vectorial distinto al de
 los chunks indexados y las distancias dejan de ser comparables.
 
 Requiere:
@@ -75,13 +62,10 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-# IMPORTANTE: esto tiene que ir ANTES de "import chromadb" (que puede
-# arrastrar sentence-transformers/torch si EMBEDDING_BACKEND=
-# sentence-transformers). En Windows, PyTorch puede colgarse
-# indefinidamente al inicializar su pool de hilos OpenMP/MKL cuando
-# corre dentro de un subproceso SIN consola real (exactamente el caso
-# de un servidor MCP lanzado vía stdio, con stdin/stdout/stderr
-# redirigidos por pipes en vez de una ventana de consola normal) --
+# IMPORTANTE: esto tiene que ir ANTES de "import chromadb" 
+# En Windows, PyTorch puede colgarse indefinidamente al inicializar 
+# su pool de hilos OpenMP/MKL cuando corre dentro de un subproceso 
+# SIN consola real (exactamente el caso de un servidor MCP lanzado vía stdio)
 # limitar la cantidad de hilos a 1 evita ese cuelgue. os.environ.setdefault
 # para no pisar un valor que el usuario ya haya fijado a propósito.
 os.environ.setdefault("OMP_NUM_THREADS", "1")
@@ -248,7 +232,6 @@ def get_embedding_function():
     if backend == "sentence-transformers":
         model = os.environ.get("ST_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
         return embedding_functions.SentenceTransformerEmbeddingFunction(model_name=model)
-
 
     raise ValueError(
         f"EMBEDDING_BACKEND desconocido: {backend!r}. Usa 'openai' o 'sentence-transformers'."

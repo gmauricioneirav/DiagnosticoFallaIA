@@ -2,10 +2,9 @@
 agents/rag_agent.py
 
 Nodo RAG: consulta los manuales/normas de protecciones relevantes,
-invocando la herramienta MCP `retrieve_manuals` (servida por
-mcp_servers/retrieval_server.py, que a su vez usa rag/retriever.py).
-No interpreta el contenido recuperado -- eso es trabajo del agente de
-Diagnóstico.
+invocando la herramienta MCP `retrieve_manuals` 
+(servida por mcp_servers/retrieval_server.py, que a su vez usa rag/retriever.py).
+No interpreta el contenido recuperado.
 """
 
 from __future__ import annotations
@@ -16,11 +15,7 @@ from agents.coordinator import _last_human_text
 from graph.workflow import TOOL_RETRIEVE_MANUALS, FaultAnalysisState, call_tool
 
 # Umbral por debajo del cual una componente de secuencia (cero/negativa)
-# se considera "presente" -- por encima de este valor relativo a la
-# secuencia positiva, se menciona explícitamente en el query porque es
-# indicio de falla asimétrica (fase-tierra / fase-fase) y ayuda al
-# retriever a priorizar la sección del manual correspondiente en vez de
-# la de fallas trifásicas balanceadas.
+# se considera "presente" 
 _SEQ_PRESENCE_RATIO = 0.1
 
 
@@ -42,8 +37,7 @@ def _describe_event(state: FaultAnalysisState) -> list[str]:
     """Arma fragmentos de texto en lenguaje natural con la información
     específica del evento disponible en el State, para que el query del
     RAG apunte a los criterios de protección relevantes para ESTE caso
-    (tipo de falla, fases involucradas, protección que operó, relé
-    involucrado) en vez de un query genérico fijo.
+    (tipo de falla, fases involucradas, protección que operó, relé involucrado).
     """
     parts: list[str] = []
 
@@ -83,7 +77,6 @@ def _describe_event(state: FaultAnalysisState) -> list[str]:
         )
         if voltages:
             parts.append(f"tensiones durante la falla {voltages}")
-
         # Secuencia negativa/cero presentes en magnitud apreciable frente
         # a la positiva => indicio de asimetría (fase-fase / fase-tierra)
         # que vale la pena nombrar explícitamente en el query.
@@ -98,13 +91,6 @@ def _describe_event(state: FaultAnalysisState) -> list[str]:
                 parts.append("presencia significativa de secuencia cero de corriente (posible falla a tierra)")
 
     protection_summary = features.get("protection_summary") or {}
-
-    # `activations_after_trigger` trae TODOS los canales digitales que se
-    # activaron tras el trigger (no solo el primero) -- ver
-    # SOEExtractor.summarize_protection_status. Se listan todas las
-    # protecciones que operaron (deduplicadas, en orden cronológico) para
-    # que el RAG pueda matchear la combinación real de elementos actuados
-    # (p. ej. "50/51 + 87" vs. solo "50/51N"), no solo el primero.
     activations = protection_summary.get("activations_after_trigger") or []
     operated_channels: list[str] = []
     for act in activations:
@@ -115,19 +101,11 @@ def _describe_event(state: FaultAnalysisState) -> list[str]:
     if operated_channels:
         parts.append(f"protecciones que operaron: {', '.join(operated_channels)}")
     else:
-        # Sin lista detallada, se cae al mejor dato individual disponible.
         trip_channel = protection_summary.get("first_trip_channel") or protection_summary.get(
             "first_activation_channel"
         )
         if trip_channel:
             parts.append(f"protección que operó: canal {trip_channel}")
-
-    # El disparo confirmado (solo se llena si se pasaron trip_channel_names
-    # al extraerlo -- ver SOEExtractor.summarize_protection_status) se
-    # destaca aparte, aunque ya esté incluido en la lista de arriba: ayuda
-    # al retriever a distinguir "cuál de todos disparó" de "cuáles solo
-    # arrancaron/hicieron pickup", que en la mayoría de manuales son
-    # criterios (y secciones) distintos.
     first_trip_channel = protection_summary.get("first_trip_channel")
     if first_trip_channel:
         parts.append(f"disparo confirmado: canal {first_trip_channel}")
@@ -144,10 +122,9 @@ async def rag_node(state: FaultAnalysisState) -> dict:
     query = " | ".join(query_parts) or "criterios generales de protección para el evento registrado"
 
     docs = await call_tool(TOOL_RETRIEVE_MANUALS, query=query, top_k=5)
-    # call_tool() no puede distinguir "la herramienta devolvió None" de
-    # "devolvió una lista vacía" (0 bloques de contenido MCP en ambos
-    # casos) -- por eso None se normaliza aquí a lista vacía, no a
-    # [None], que ensuciaría retrieved_docs con un resultado falso.
+    # call_tool() no puede distinguir "la herramienta devolvió None" de "devolvió una lista vacía" 
+    # (0 bloques de contenido MCP en ambos casos) -- por eso None se normaliza aquí a lista vacía, 
+    # no a [None], que ensuciaría retrieved_docs con un resultado falso.
     if docs is None:
         docs = []
     elif not isinstance(docs, list):
@@ -155,12 +132,5 @@ async def rag_node(state: FaultAnalysisState) -> dict:
     return {
         "retrieved_docs": docs,
         "rag_attempted": True,
-        # Marca "ya reintenté rag para el ciclo de revisión actual" --
-        # diagnostico_node lo resetea a False en cada corrida (ver ese
-        # archivo), así que este flag naturalmente vuelve a estar
-        # disponible para un ÚNICO reintento por cada nueva hipótesis.
-        # Sin esto, el Supervisor podía repetir 'rag' indefinidamente
-        # mientras needs_revision/revision_notes no cambiaran (ver
-        # prompts/coordinator_prompt.py).
         "rag_retried_for_revision": True,
     }

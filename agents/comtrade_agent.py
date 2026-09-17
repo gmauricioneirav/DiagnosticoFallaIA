@@ -1,10 +1,9 @@
 """
 agents/comtrade_agent.py
 
-Nodo de Ingesta: parseo puro del archivo COMTRADE (sin LLM, sin cálculo
-de features -- eso lo hace agents/feature_agent.py vía herramientas MCP).
-Usa ComtradeFeatureExtractor solo para cargar el registro y leer
-metadatos -- el objeto `comtrade.Comtrade` real que expone, con los
+Nodo de Ingesta: parseo puro del archivo COMTRADE (sin LLM, sin cálculo de features).
+Usa ComtradeFeatureExtractor solo para cargar el registro y leer metadatos 
+-- el objeto `comtrade.Comtrade` real que expone, con los
 atributos que sí tiene: station_name, rec_dev_id, cfg.sample_rates,
 cfg.frequency, time, trigger_time, analog_channel_ids,
 status_channel_ids.

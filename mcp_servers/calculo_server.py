@@ -25,23 +25,9 @@ Ejecutar:
     # lanzando este script como subproceso -- ver ejemplo de config abajo)
     python mcp_servers/calculo_server.py
 
-    # Transporte HTTP (proceso persistente, para producción o para
-    # correr el servidor en otra máquina)
-    MCP_TRANSPORT=http MCP_PORT=8001 python mcp_servers/calculo_server.py
-
-Config correspondiente para MCP_SERVERS_CONFIG (usada por
-graph.workflow.get_mcp_tools / MultiServerMCPClient) según el transporte
-elegido:
-
     # stdio
     {"calculo": {"transport": "stdio", "command": "python",
                  "args": ["/ruta/a/mcp_servers/calculo_server.py"]}}
-
-    # streamable_http (NOTA: el cliente usa guión bajo "streamable_http";
-    # el argumento `transport=` de FastMCP.run(), en cambio, usa guión
-    # medio "streamable-http" -- son convenciones de librerías distintas,
-    # no lo mismo escrito distinto por error)
-    {"calculo": {"transport": "streamable_http", "url": "http://localhost:8001/mcp"}}
 
 Requiere:
     pip install "mcp[cli]" comtrade numpy pandas
@@ -54,11 +40,13 @@ import os
 import sys
 from pathlib import Path
 
+# "Agrega la carpeta raíz del proyecto al principio de las rutas de búsqueda de Python 
+# para que pueda encontrar fácilmente los módulos del proyecto mediante import."
 # Cuando MultiServerMCPClient lanza este archivo como subproceso
 # (`python mcp_servers/calculo_server.py`), Python pone el directorio del
-# script (mcp_servers/) como primera entrada de sys.path -- NO la raíz
-# del proyecto -- sin importar cuál sea el cwd del proceso padre. Sin
-# esto, `from tools.comtrade_features import ...` falla con
+# script (mcp_servers/) como primera entrada de sys.path 
+# -- NO la raíz del proyecto -- sin importar cuál sea el cwd del proceso padre. 
+# Sin esto, `from tools.comtrade_features import ...` falla con
 # ModuleNotFoundError dentro del subproceso, y langchain-mcp-adapters lo
 # reporta de forma confusa como McpError('Connection closed'). Insertar
 # la raíz del proyecto (un nivel arriba de mcp_servers/) al principio de
@@ -98,7 +86,6 @@ async def extract_fault_features(cfg_path: str, dat_path: str, include_per_cycle
             por ciclo (más pesado); por defecto solo se devuelve el
             resumen de la ventana de falla, que es lo que necesita el
             agente de diagnóstico en la mayoría de los casos.
-
     Returns:
         {
           "summary": {...},              # ComtradeFeatureExtractor.summarize_event
@@ -137,10 +124,7 @@ async def extract_protection_status(
             primero vía retrieve_manuals contra el manual del relé.
 
     Returns:
-        Resumen de SOEExtractor.summarize_protection_status(): siempre
-        incluye la primera activación tras el trigger (neutral); el
-        disparo confirmado ("first_trip_*") solo se llena si
-        trip_channel_names matcheó algo.
+        Resumen de SOEExtractor.summarize_protection_status(): 
     """
     def _run():
         soe = SOEExtractor(cfg_path=cfg_path, dat_path=dat_path).load()

@@ -45,9 +45,7 @@ def build_critico_node(llm):
             "revision_notes": result.notes,
             "reviewed_by_critico": True,
             # Se incrementa solo si volvió a ser inconsistente; se resetea
-            # a 0 apenas el Crítico da el visto bueno. route_from_supervisor
-            # usa esto como tope de seguridad determinístico (ver ahí) --
-            # independiente de si el LLM interpreta bien needs_revision.
+            # a 0 apenas el Crítico da el visto bueno. 
             "revision_count": prev_count + 1 if not result.consistent else 0,
         }
 
