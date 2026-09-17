@@ -16,7 +16,6 @@ DiagnosticoFallaIA/
 ├── agents/                    # Un archivo por nodo del grafo
 │   ├── coordinator.py          # Supervisor: decide next_step (antes en supervisor_agent.py)
 │   ├── comtrade_agent.py       # Nodo "ingesta": parseo puro del archivo COMTRADE
-│   ├── signal_agent.py         # Genera las gráficas (analógica/digital) vía MCP
 │   ├── feature_agent.py        # Nodo "features": RMS, componentes simétricas, protecciones
 │   ├── rag_agent.py            # Nodo "rag": consulta manuales normativos vía MCP
 │   ├── diagnosis_agent.py      # Nodo "diagnostico": agente ReAct
@@ -46,7 +45,7 @@ DiagnosticoFallaIA/
 │   ├── critico_prompt.py
 │   └── report_prompt.py
 │
-├── reports/                     # Salida de informes/logs generados en tiempo de ejecución
+├── logs/                        # Salida de logs generados en tiempo de ejecución
 └── sample/                      # Coloca aquí tus .cfg/.dat de ejemplo
 ```
 
